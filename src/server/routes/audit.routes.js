@@ -27,19 +27,11 @@ export function registerAuditRoutes(router) {
       const manager = vaultState.getManager();
       if (!manager || !manager.isUnlocked()) return res.json({ error: 'Vault is locked' }, 401);
 
-      // Get full entries for auditing (we need passwords to check strength/reuse)
-      const summaries = manager.listEntries();
-      // Map to the schema auditVaultSecrets expects: { id, title, value }
-      // Note: 'value' is the field auditVaultSecrets uses for password scoring.
-      //       Our VaultManager uses the 'password' field in credentials.
-      const entriesForAudit = summaries.map(s => {
-        const full = manager.getEntry(s.id);
-        return {
-          id: full.id,
-          title: full.service,
-          value: full.password,   // Map password → value for audit engine compatibility
-          notes: full.notes
-        };
+      // Retrieve full credential data for strength/reuse analysis.
+      // 'password' is mapped to 'value' to match the audit engine's expected schema.
+      const entriesForAudit = manager.listEntries().map(summary => {
+        const full = manager.getEntry(summary.id);
+        return { id: full.id, title: full.service, value: full.password };
       });
 
       const auditResult = security.auditVaultSecrets(entriesForAudit);

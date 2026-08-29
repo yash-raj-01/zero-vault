@@ -18,9 +18,9 @@ export class VaultManager {
     this.filePath = filePath;
     this.unlocked = false;
     this.credentials = [];
-    
-    // We hold the master password internally only while unlocked to facilitate seamless saves.
-    // It is zero-filled immediately upon lock().
+
+    // The master password is retained in memory while unlocked to re-encrypt on every
+    // CRUD save. It is zero-filled immediately on lock() and on failed unlock attempts.
     this._passwordBuffer = null;
   }
 
@@ -59,7 +59,7 @@ export class VaultManager {
     try {
       parsed = unlockVault(password, binaryData);
     } catch (err) {
-      // If unlocking fails (e.g. wrong password), ensure no side effects remain
+      // Ensure no partial state lingers after a failed unlock (e.g. wrong password)
       this.lock();
       throw err;
     }
@@ -67,7 +67,7 @@ export class VaultManager {
     this.credentials = Array.isArray(parsed.credentials) ? parsed.credentials : [];
     this.unlocked = true;
 
-    // Retain the password in memory to allow future atomic saves on CRUD operations.
+    // Retain password so future _save() calls can re-encrypt without prompting the user.
     this._passwordBuffer = Buffer.allocUnsafe(password.length);
     password.copy(this._passwordBuffer);
   }
@@ -89,13 +89,9 @@ export class VaultManager {
     return this.unlocked;
   }
 
-  /**
-   * Internal function to save the current credential state to disk.
-   */
   _save() {
     this._assertUnlocked();
-    const payload = { credentials: this.credentials };
-    const binaryData = createVault(this._passwordBuffer, payload);
+    const binaryData = createVault(this._passwordBuffer, { credentials: this.credentials });
     atomicWriteSync(this.filePath, binaryData);
   }
 
@@ -104,10 +100,6 @@ export class VaultManager {
       throw new VaultLockedError();
     }
   }
-
-  // ==========================================
-  // Credential CRUD Operations
-  // ==========================================
 
   createEntry(data) {
     this._assertUnlocked();
@@ -134,7 +126,7 @@ export class VaultManager {
 
   listEntries() {
     this._assertUnlocked();
-    // Return summaries (omit passwords)
+    // Summaries only — passwords are never included in list results
     return this.credentials.map(c => ({
       id: c.id,
       service: c.service,
@@ -147,8 +139,7 @@ export class VaultManager {
     this._assertUnlocked();
     const entry = this.credentials.find(c => c.id === id);
     if (!entry) throw new VaultError(`Credential not found for id: ${id}`);
-    
-    // Return a deep copy so callers can't accidentally mutate internal state
+    // Return a shallow copy — callers must not hold a reference to internal state
     return { ...entry };
   }
 
