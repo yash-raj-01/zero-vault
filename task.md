@@ -1,14 +1,13 @@
-# ZeroVault Phase 3 — Task List
+# ZeroVault Phase 3 Member 3 Integration Tasks
 
-## Execution
-
-- [x] Refactor `src/server/state.js` to use `VaultManager`
-- [x] Refactor `src/server/routes/vault.routes.js`
-  - [x] Use `VaultManager` for init/unlock/lock
-  - [x] Add CRUD routes (`/api/entries/*`)
-  - [x] Delete unsafe `/api/vault/save`
-  - [x] Mask raw errors
-- [x] Refactor `src/server/routes/audit.routes.js`
-- [x] Update integration tests (`tests/router.test.js` or `tests/integration.test.js`)
-- [x] Run test suite
-- [x] Commit and push
+- [x] Create/checkout branch `member3/phase3-integration`
+- [x] Adapt and harden API endpoints for Vault (CRUD), TOTP, Scanner, Generator, and Audit
+- [x] Enhance frontend `index.html` to include a full working UI (CRUD modals, dynamic list rendering, audit display, etc.)
+- [x] Rewrite frontend `app.js` with secure state handling and complete component wiring
+- [x] Make sure TOTP displays visual progress bar and doesn't log secrets
+- [x] Make sure the Scanner renders redacted output and rejects oversized payloads (5MB limit)
+- [x] Ensure Security Audit maps credential attributes correctly and doesn't leak secrets in responses
+- [x] Verify Zero Dependencies throughout frontend and backend
+- [x] Write E2E integration test covering the entire flow
+- [x] Ensure all 85 unit and integration tests pass
+- [x] Commit and push changes

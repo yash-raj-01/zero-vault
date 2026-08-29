@@ -11,11 +11,11 @@ class ApiClient {
       });
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'API Request Failed');
+        throw new Error(data.error || `API request failed (${response.status})`);
       }
       return data;
     } catch (err) {
-      console.error('API Error:', err);
+      // Re-throw for callers to handle - DO NOT console.log sensitive data here
       throw err;
     }
   }
@@ -29,6 +29,17 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(body)
     });
+  }
+
+  async put(endpoint, body) {
+    return this.request(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(body)
+    });
+  }
+
+  async delete(endpoint) {
+    return this.request(endpoint, { method: 'DELETE' });
   }
 }
 

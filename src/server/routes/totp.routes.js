@@ -30,7 +30,7 @@ export function registerTotpRoutes(router) {
       const { uri } = req.body;
       if (!uri) return res.json({ error: 'Missing URI' }, 400);
       const parsed = security.parseOtpauthUri(uri);
-
+      
       // SECURITY: Never return the raw secret in the API response.
       // The secret is only needed server-side for TOTP generation.
       const { secret: _secret, ...safeFields } = parsed;
