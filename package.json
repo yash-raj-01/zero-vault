@@ -5,8 +5,8 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "test": "node --test tests/crypto.test.js tests/vault.test.js",
-    "test:verbose": "node --test --reporter=spec tests/crypto.test.js tests/vault.test.js"
+    "test": "node --test tests/crypto.test.js tests/vault.test.js tests/security.test.js",
+    "test:verbose": "node --test --reporter=spec tests/crypto.test.js tests/vault.test.js tests/security.test.js"
   },
   "engines": {
     "node": ">=25.0.0"

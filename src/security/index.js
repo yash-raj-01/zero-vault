@@ -1,16 +1,7 @@
 /**
- * ZeroVault Public API
+ * Security Utilities Subsystem Public Interface (Member 2)
  */
 
-export { createVault, unlockVault } from './vault/vault.js';
-export {
-  VaultError,
-  VaultFormatError,
-  VaultAuthError,
-  VaultCorruptedError
-} from './vault/errors.js';
-
-export * as security from './security/index.js';
 export {
   base32Decode,
   base32Encode,
@@ -19,23 +10,41 @@ export {
   verifyTOTP,
   parseOtpauthUri,
   generateOtpauthUri,
+  RFC6238_TEST_VECTORS
+} from './totp.js';
+
+export {
   calculateShannonEntropy,
   redactSecret,
   SECRET_DETECTOR_RULES,
   scanSecrets,
-  redactText,
+  redactText
+} from './scanner.js';
+
+export {
+  CHARSETS,
+  AMBIGUOUS_CHARS,
+  DEFAULT_WORDLIST,
+  getRandomInt,
+  shuffleArray,
+  calculateEntropyBits,
   generatePassword,
   generatePassphrase,
   generateBytes,
   generateHexKey,
-  generateBase64Key,
+  generateBase64Key
+} from './generator.js';
+
+export {
   auditPassword,
-  auditVaultSecrets,
+  auditVaultSecrets
+} from './audit.js';
+
+export {
   checkFilePermissions,
   secureFilePermissions,
   safeWriteFile,
   shredFile,
   hashFile,
   verifyFileIntegrity
-} from './security/index.js';
-
+} from './file-protection.js';
