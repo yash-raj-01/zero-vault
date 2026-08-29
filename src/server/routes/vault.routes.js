@@ -1,7 +1,15 @@
 import { vaultState } from '../state.js';
 
+function requireUnlocked(res) {
+  const manager = vaultState.getManager();
+  if (!manager || !manager.isUnlocked()) {
+    res.json({ error: 'Vault is locked' }, 401);
+    return null;
+  }
+  return manager;
+}
+
 export function registerVaultRoutes(router) {
-  // GET /api/vault/status
   router.get('/api/vault/status', (req, res) => {
     const manager = vaultState.getManager();
     if (!manager || !manager.isUnlocked()) {
@@ -10,7 +18,6 @@ export function registerVaultRoutes(router) {
     res.json({ locked: false, vaultPath: manager.filePath });
   });
 
-  // POST /api/vault/create
   router.post('/api/vault/create', async (req, res) => {
     const { password, vaultPath } = req.body;
     if (!password || !vaultPath) return res.json({ error: 'Missing password or vaultPath' }, 400);
@@ -18,19 +25,17 @@ export function registerVaultRoutes(router) {
     try {
       vaultState.initManager(vaultPath);
       const manager = vaultState.getManager();
-      
       const pwdBuf = Buffer.from(password);
       await manager.initializeVault(pwdBuf);
       manager.unlock(pwdBuf);
-      pwdBuf.fill(0); // Defense in depth
-
+      // Zero the local password buffer — manager retains its own internal copy
+      pwdBuf.fill(0);
       res.json({ success: true, vaultPath });
-    } catch (err) {
-      res.json({ error: 'Failed to create vault safely' }, 500);
+    } catch {
+      res.json({ error: 'Failed to create vault' }, 500);
     }
   });
 
-  // POST /api/vault/unlock
   router.post('/api/vault/unlock', (req, res) => {
     const { password, vaultPath } = req.body;
     if (!password || !vaultPath) return res.json({ error: 'Missing password or vaultPath' }, 400);
@@ -38,93 +43,73 @@ export function registerVaultRoutes(router) {
     try {
       vaultState.initManager(vaultPath);
       const manager = vaultState.getManager();
-      
       const pwdBuf = Buffer.from(password);
       manager.unlock(pwdBuf);
-      pwdBuf.fill(0); // Defense in depth
-      
+      // Zero the local password buffer — manager retains its own internal copy
+      pwdBuf.fill(0);
       const itemCount = manager.listEntries().length;
       res.json({ success: true, vaultPath, itemCount });
-    } catch (err) {
-      // Safe generic error
+    } catch {
+      // Generic error — do not reveal whether the file exists, password was wrong, or vault is corrupted
       res.json({ error: 'Authentication failed or vault is corrupted' }, 401);
     }
   });
 
-  // POST /api/vault/lock
   router.post('/api/vault/lock', (req, res) => {
     vaultState.clearManager();
     res.json({ success: true, locked: true });
   });
 
-  // ==========================================
-  // Credential CRUD Endpoints
-  // ==========================================
-
-  // GET /api/entries
   router.get('/api/entries', (req, res) => {
-    const manager = vaultState.getManager();
-    if (!manager || !manager.isUnlocked()) return res.json({ error: 'Vault is locked' }, 401);
-    
+    const manager = requireUnlocked(res);
+    if (!manager) return;
     try {
-      const entries = manager.listEntries();
-      res.json({ entries });
-    } catch (err) {
-      res.json({ error: 'Failed to fetch entries' }, 500);
+      res.json({ entries: manager.listEntries() });
+    } catch {
+      res.json({ error: 'Failed to list entries' }, 500);
     }
   });
 
-  // POST /api/entries
   router.post('/api/entries', (req, res) => {
-    const manager = vaultState.getManager();
-    if (!manager || !manager.isUnlocked()) return res.json({ error: 'Vault is locked' }, 401);
-    
+    const manager = requireUnlocked(res);
+    if (!manager) return;
     try {
       const id = manager.createEntry(req.body);
       res.json({ success: true, id });
     } catch (err) {
-      res.json({ error: 'Failed to create entry safely' }, 400);
+      res.json({ error: err.message || 'Failed to create entry' }, 400);
     }
   });
 
-  // GET /api/entries/:id
-  // Note: the router.js handles dynamic segments like :id ? Wait, does it?
-  // Let me check if Router supports params. Yes, the tests in `router.test.js` say "should extract URL parameters".
   router.get('/api/entries/:id', (req, res) => {
-    const manager = vaultState.getManager();
-    if (!manager || !manager.isUnlocked()) return res.json({ error: 'Vault is locked' }, 401);
-    
+    const manager = requireUnlocked(res);
+    if (!manager) return;
     try {
-      const entry = manager.getEntry(req.params.id);
-      res.json({ entry });
-    } catch (err) {
+      res.json({ entry: manager.getEntry(req.params.id) });
+    } catch {
       res.json({ error: 'Entry not found' }, 404);
     }
   });
 
-  // PUT /api/entries/:id
   router.put('/api/entries/:id', (req, res) => {
-    const manager = vaultState.getManager();
-    if (!manager || !manager.isUnlocked()) return res.json({ error: 'Vault is locked' }, 401);
-    
+    const manager = requireUnlocked(res);
+    if (!manager) return;
     try {
       manager.updateEntry(req.params.id, req.body);
       res.json({ success: true });
     } catch (err) {
-      res.json({ error: 'Failed to update entry safely' }, 400);
+      res.json({ error: err.message || 'Failed to update entry' }, 400);
     }
   });
 
-  // DELETE /api/entries/:id
   router.delete('/api/entries/:id', (req, res) => {
-    const manager = vaultState.getManager();
-    if (!manager || !manager.isUnlocked()) return res.json({ error: 'Vault is locked' }, 401);
-    
+    const manager = requireUnlocked(res);
+    if (!manager) return;
     try {
       manager.deleteEntry(req.params.id);
       res.json({ success: true });
-    } catch (err) {
-      res.json({ error: 'Failed to delete entry safely' }, 400);
+    } catch {
+      res.json({ error: 'Entry not found' }, 404);
     }
   });
 }

@@ -2,8 +2,6 @@ import { createServer } from 'node:http';
 import { join } from 'node:path';
 import { Router } from './router.js';
 import { serveStatic } from './static.js';
-
-// Import Routes
 import { registerVaultRoutes } from './routes/vault.routes.js';
 import { registerGeneratorRoutes } from './routes/generator.routes.js';
 import { registerTotpRoutes } from './routes/totp.routes.js';
@@ -11,12 +9,11 @@ import { registerScannerRoutes } from './routes/scanner.routes.js';
 import { registerAuditRoutes } from './routes/audit.routes.js';
 import { registerFileRoutes } from './routes/file.routes.js';
 
-const publicDir = join(process.cwd(), 'public');
+const PUBLIC_DIR = join(process.cwd(), 'public');
 
 export function startServer(port = 3000) {
   const router = new Router();
 
-  // Register API routes
   registerVaultRoutes(router);
   registerGeneratorRoutes(router);
   registerTotpRoutes(router);
@@ -25,7 +22,6 @@ export function startServer(port = 3000) {
   registerFileRoutes(router);
 
   const server = createServer(async (req, res) => {
-    // 1. Try API Routes
     if (req.url.startsWith('/api/')) {
       const handled = await router.handle(req, res);
       if (!handled) {
@@ -35,12 +31,11 @@ export function startServer(port = 3000) {
       return;
     }
 
-    // 2. Fallback to Static File Serving
-    const isStatic = serveStatic(req, res, publicDir);
-    if (!isStatic) {
-      // 3. Fallback to index.html for SPA routing
+    const served = serveStatic(req, res, PUBLIC_DIR);
+    if (!served) {
+      // SPA fallback: serve index.html for navigation URLs (no file extension)
       if (req.method === 'GET' && !req.url.includes('.')) {
-        serveStatic({ ...req, url: '/' }, res, publicDir);
+        serveStatic({ ...req, url: '/' }, res, PUBLIC_DIR);
       } else {
         res.writeHead(404);
         res.end('Not Found');
@@ -49,8 +44,7 @@ export function startServer(port = 3000) {
   });
 
   server.listen(port, () => {
-    console.log(`ZeroVault Server running at http://localhost:${port}`);
-    console.log(`Serving static files from ${publicDir}`);
+    console.log(`ZeroVault running at http://localhost:${port}`);
   });
 
   return server;
