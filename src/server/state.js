@@ -1,32 +1,41 @@
-class VaultState {
+import { VaultManager } from '../index.js';
+
+class GlobalState {
   constructor() {
-    this.locked = true;
-    this.vaultPath = null;
-    this.secrets = { items: [] };
-    this.lastUnlocked = null;
+    this.manager = null;
   }
 
-  unlock(vaultPath, secrets) {
-    this.locked = false;
-    this.vaultPath = vaultPath;
-    this.secrets = secrets || { items: [] };
-    this.lastUnlocked = Date.now();
+  /**
+   * Initializes the manager instance for a specific file path.
+   * @param {string} vaultPath 
+   */
+  initManager(vaultPath) {
+    if (!this.manager || this.manager.filePath !== vaultPath) {
+      this.manager = new VaultManager(vaultPath);
+    }
   }
 
-  lock() {
-    this.locked = true;
-    this.secrets = { items: [] };
-    this.lastUnlocked = null;
+  /**
+   * Returns the active VaultManager instance.
+   * @returns {VaultManager | null}
+   */
+  getManager() {
+    return this.manager;
   }
 
-  isUnlocked() {
-    return !this.locked;
-  }
-
-  getSecrets() {
-    if (this.locked) throw new Error('Vault is locked');
-    return this.secrets;
+  /**
+   * Locks and destroys the active manager instance.
+   */
+  clearManager() {
+    if (this.manager) {
+      try {
+        this.manager.lock();
+      } catch (e) {
+        // Ignore locking errors during cleanup
+      }
+    }
+    this.manager = null;
   }
 }
 
-export const vaultState = new VaultState();
+export const vaultState = new GlobalState();

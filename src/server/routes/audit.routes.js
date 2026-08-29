@@ -1,26 +1,33 @@
-import * as security from '../../security/index.js';
 import { vaultState } from '../state.js';
+import { security } from '../../index.js';
 
 export function registerAuditRoutes(router) {
   router.post('/api/audit/password', (req, res) => {
     try {
       const { password } = req.body;
       if (!password) return res.json({ error: 'Missing password' }, 400);
-      const audit = security.auditPassword(password);
-      res.json(audit);
+
+      const auditResult = security.auditPassword(password);
+      res.json(auditResult);
     } catch (err) {
-      res.json({ error: err.message }, 400);
+      res.json({ error: 'Failed to audit password' }, 500);
     }
   });
 
-  router.post('/api/audit/vault', (req, res) => {
+  router.get('/api/audit/vault', (req, res) => {
     try {
-      if (vaultState.locked) return res.json({ error: 'Vault is locked' }, 401);
-      const items = vaultState.getSecrets().items || [];
-      const report = security.auditVaultSecrets(items);
-      res.json(report);
+      const manager = vaultState.getManager();
+      if (!manager || !manager.isUnlocked()) return res.json({ error: 'Vault is locked' }, 401);
+      
+      // Need full entries for audit (including passwords to check strength/reuse)
+      // listEntries() only gives summaries. We must fetch full for the audit.
+      const summaries = manager.listEntries();
+      const fullEntries = summaries.map(s => manager.getEntry(s.id));
+      
+      const auditResult = security.auditVaultSecrets(fullEntries);
+      res.json(auditResult);
     } catch (err) {
-      res.json({ error: err.message }, 400);
+      res.json({ error: 'Failed to audit vault secrets' }, 500);
     }
   });
 }
