@@ -37,7 +37,7 @@ export class Router {
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       });
       res.end();
-      return;
+      return true;
     }
 
     const routeList = this.routes[method] || [];
@@ -89,7 +89,7 @@ export class Router {
           console.error(err);
           res.json({ error: err.message || 'Internal Server Error' }, 500);
         }
-        return;
+        return true;
       }
     }
     
