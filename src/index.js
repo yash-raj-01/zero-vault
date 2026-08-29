@@ -10,6 +10,8 @@ export {
   VaultCorruptedError
 } from './vault/errors.js';
 
+export { VaultManager, VaultLockedError } from './vault/manager.js';
+
 export * as security from './security/index.js';
 export {
   base32Decode,
