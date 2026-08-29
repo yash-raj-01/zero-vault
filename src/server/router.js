@@ -86,7 +86,7 @@ export class Router {
         try {
           await route.handler(req, res);
         } catch (err) {
-          console.error(err);
+          console.error('[Router Error]', err.name, err.message);
           res.json({ error: err.message || 'Internal Server Error' }, 500);
         }
         return true;

@@ -213,3 +213,22 @@ test('VaultSecurity — atomicWriteSync handles failed writes without deleting o
   
   try { fs.unlinkSync(filePath); } catch (e) {}
 });
+
+test('VaultSecurity — Errors do not leak password or secrets', (t) => {
+  const filePath = getTempFile();
+  const password = Buffer.from('mySuperSecretPassword123');
+  const manager = new VaultManager(filePath);
+  
+  manager.initializeVault(password);
+  
+  const wrongPassword = Buffer.from('wrong_password_with_some_secret_stuff');
+  try {
+    manager.unlock(wrongPassword);
+    assert.fail('Should have thrown VaultAuthError');
+  } catch (err) {
+    assert.ok(!err.message.includes('wrong_password_with_some_secret_stuff'), 'Error message leaked password');
+    assert.ok(!err.stack.includes('wrong_password_with_some_secret_stuff'), 'Error stack leaked password');
+  }
+  
+  try { fs.unlinkSync(filePath); } catch (e) {}
+});
