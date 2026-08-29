@@ -55,7 +55,14 @@ export class VaultManager {
       throw new VaultError(`Vault file not found: ${this.filePath}`);
     }
 
-    const parsed = unlockVault(password, binaryData);
+    let parsed;
+    try {
+      parsed = unlockVault(password, binaryData);
+    } catch (err) {
+      // If unlocking fails (e.g. wrong password), ensure no side effects remain
+      this.lock();
+      throw err;
+    }
     
     this.credentials = Array.isArray(parsed.credentials) ? parsed.credentials : [];
     this.unlocked = true;
@@ -93,7 +100,7 @@ export class VaultManager {
   }
 
   _assertUnlocked() {
-    if (!this.unlocked || !this._passwordBuffer) {
+    if (!this.unlocked || !this._passwordBuffer || this._passwordBuffer.length === 0) {
       throw new VaultLockedError();
     }
   }

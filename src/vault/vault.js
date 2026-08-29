@@ -9,7 +9,7 @@ import { generateSalt, generateIV } from '../crypto/random.js';
 import { deriveKey, DEFAULT_PARAMS } from '../crypto/kdf.js';
 import { encrypt, decrypt } from '../crypto/aead.js';
 import { encodeVault, decodeVault, getHmacPayload } from './format.js';
-import { VaultAuthError, VaultError } from './errors.js';
+import { VaultAuthError, VaultError, VaultCorruptedError } from './errors.js';
 
 /**
  * Creates a new encrypted vault containing the given secrets.
@@ -51,8 +51,9 @@ export function createVault(password, secrets) {
     ciphertext = res.ciphertext;
     tag = res.tag;
   } finally {
-    // Zero encryption key immediately after use
+    // Zero encryption key and plaintext immediately after use
     encKey.fill(0);
+    plaintext.fill(0);
   }
 
   // 5. Outer HMAC
@@ -100,7 +101,7 @@ export function unlockVault(password, vaultData) {
     const expectedHmac = h.digest();
 
     if (!timingSafeEqual(hmac, expectedHmac)) {
-      throw new VaultAuthError('Authentication failed (wrong password or tampered vault)');
+      throw new VaultAuthError('Authentication failed or vault is corrupted');
     }
 
     // 4. Decrypt
@@ -109,7 +110,7 @@ export function unlockVault(password, vaultData) {
     try {
       plaintext = decrypt(encKey, iv, ciphertext, tag, headerForAAD);
     } catch (err) {
-      throw new VaultAuthError('Authentication failed (GCM tag mismatch)');
+      throw new VaultAuthError('Authentication failed or vault is corrupted');
     }
 
     // 5. Parse JSON
@@ -117,7 +118,9 @@ export function unlockVault(password, vaultData) {
       return JSON.parse(plaintext.toString('utf8'));
     } catch (err) {
       // This should never happen if encryption/auth succeeded unless the creator stored invalid JSON.
-      throw new VaultError('Failed to parse decrypted payload as JSON');
+      throw new VaultCorruptedError('Failed to parse decrypted payload as JSON');
+    } finally {
+      if (plaintext) plaintext.fill(0);
     }
   } finally {
     encKey.fill(0);
