@@ -4,16 +4,21 @@ import { CHARSETS } from './generator.js';
 /**
  * Common weak pattern regexes for password auditing
  */
-const COMMON_SEQUENCES = [
-  /12345/i,
-  /qwerty/i,
-  /asdfgh/i,
-  /password/i,
-  /admin/i,
-  /letmein/i,
-  /welcome/i,
-  /monkey/i,
-  /abc123/i
+/**
+ * Common weak patterns for password auditing (deterministic, ordered)
+ */
+const COMMON_PATTERNS = [
+  { regex: /12345/i,    label: '12345' },
+  { regex: /qwerty/i,  label: 'qwerty' },
+  { regex: /asdfgh/i,  label: 'asdfgh' },
+  { regex: /password/i,label: 'password' },
+  { regex: /admin/i,   label: 'admin' },
+  { regex: /letmein/i, label: 'letmein' },
+  { regex: /welcome/i, label: 'welcome' },
+  { regex: /monkey/i,  label: 'monkey' },
+  { regex: /abc123/i,  label: 'abc123' },
+  { regex: /iloveyou/i,label: 'iloveyou' },
+  { regex: /dragon/i,  label: 'dragon' },
 ];
 
 /**
@@ -35,7 +40,15 @@ export function auditPassword(password) {
         baseEntropyScore: 0,
         bonuses: 0,
         penalties: 100,
-        details: ['Empty or non-string password provided']
+        details: [
+          {
+            category: 'INPUT',
+            severity: 'CRITICAL',
+            description: 'Empty or non-string password provided',
+            recommendation: 'Provide a non-empty password string',
+            scoreImpact: -100
+          }
+        ]
       },
       remediations: ['Provide a non-empty password']
     };
@@ -53,7 +66,7 @@ export function auditPassword(password) {
     if (CHARSETS.uppercase.includes(char)) hasUpper = true;
     else if (CHARSETS.lowercase.includes(char)) hasLower = true;
     else if (CHARSETS.digits.includes(char)) hasDigit = true;
-    else hasSymbol = true; // includes symbols and other unicode
+    else hasSymbol = true;
   }
 
   let poolSize = 0;
@@ -61,62 +74,110 @@ export function auditPassword(password) {
   if (hasLower) poolSize += CHARSETS.lowercase.length;
   if (hasDigit) poolSize += CHARSETS.digits.length;
   if (hasSymbol) poolSize += CHARSETS.symbols.length;
-
   if (poolSize === 0) poolSize = 1;
 
   // 2. Base Entropy Calculation (E = L * log2(N))
+  // Use fixed-precision arithmetic for deterministic results
   const entropyBits = Number((len * Math.log2(poolSize)).toFixed(2));
-  // Scaling: 80 bits of entropy maps to 100 base score
+  // Scale: 80 bits of entropy = 100 base score points
   const baseEntropyScore = Math.min(100, Math.round(entropyBits * 1.25));
 
-  const details = [];
+  const details = []; // structured findings
   const remediations = [];
   let penalties = 0;
   let bonuses = 0;
 
   // 3. Length Auditing
   if (len < 8) {
-    penalties += 30;
-    details.push(`[-30] Critically short password length (${len} chars < 8)`);
+    const impact = -30;
+    penalties += Math.abs(impact);
+    details.push({
+      category: 'LENGTH',
+      severity: 'CRITICAL',
+      description: `Password is critically short (${len} characters)`,
+      recommendation: 'Use at least 12 characters; 16+ is recommended',
+      scoreImpact: impact
+    });
     remediations.push('Increase password length to at least 12-16 characters.');
   } else if (len < 12) {
-    penalties += 15;
-    details.push(`[-15] Password length is below modern standard (${len} chars < 12)`);
-    remediations.push('Extend password to 14+ characters to increase brute-force resistance.');
+    const impact = -15;
+    penalties += Math.abs(impact);
+    details.push({
+      category: 'LENGTH',
+      severity: 'HIGH',
+      description: `Password length is below modern standard (${len} characters)`,
+      recommendation: 'Extend to 14+ characters for better brute-force resistance',
+      scoreImpact: impact
+    });
+    remediations.push('Extend password to 14+ characters.');
   } else if (len >= 24) {
-    bonuses += 20;
-    details.push('[+20] Excellent passphrase length (24+ characters)');
+    const impact = +20;
+    bonuses += impact;
+    details.push({
+      category: 'LENGTH',
+      severity: 'INFO',
+      description: `Excellent passphrase length (${len} characters)`,
+      recommendation: 'No action required',
+      scoreImpact: impact
+    });
   } else if (len >= 16) {
-    bonuses += 10;
-    details.push('[+10] Strong password length (16+ characters)');
+    const impact = +10;
+    bonuses += impact;
+    details.push({
+      category: 'LENGTH',
+      severity: 'INFO',
+      description: `Good password length (${len} characters)`,
+      recommendation: 'No action required',
+      scoreImpact: impact
+    });
   }
 
-  // 4. Character Diversity Auditing
+  // 4. Character Diversity
   const activeGroupCount = (hasUpper ? 1 : 0) + (hasLower ? 1 : 0) + (hasDigit ? 1 : 0) + (hasSymbol ? 1 : 0);
   if (activeGroupCount < 3 && len < 20) {
     const missingCount = 4 - activeGroupCount;
-    const penalty = missingCount * 10;
-    penalties += penalty;
-    details.push(`[-${penalty}] Low character group diversity (uses ${activeGroupCount}/4 character types)`);
-    remediations.push('Mix uppercase letters, lowercase letters, numbers, and symbols.');
+    const impact = -(missingCount * 10);
+    penalties += Math.abs(impact);
+    details.push({
+      category: 'DIVERSITY',
+      severity: 'HIGH',
+      description: `Low character diversity — uses only ${activeGroupCount}/4 character types`,
+      recommendation: 'Mix uppercase, lowercase, digits, and symbols',
+      scoreImpact: impact
+    });
+    remediations.push('Mix uppercase, lowercase, digits, and symbols.');
   }
 
-  // 5. Sequential & Common Pattern Auditing
-  for (const seqRegex of COMMON_SEQUENCES) {
-    if (seqRegex.test(password)) {
-      penalties += 20;
-      details.push(`[-20] Password contains predictable sequence or dictionary word matching '${seqRegex.source}'`);
+  // 5. Common Pattern Check (deterministic: first match wins)
+  for (const { regex, label } of COMMON_PATTERNS) {
+    if (regex.test(password)) {
+      const impact = -20;
+      penalties += Math.abs(impact);
+      details.push({
+        category: 'PATTERN',
+        severity: 'HIGH',
+        description: `Contains predictable sequence or dictionary word: '${label}'`,
+        recommendation: 'Avoid common words, keyboard patterns, and default passwords',
+        scoreImpact: impact
+      });
       remediations.push('Avoid common words, sequential keyboard patterns, and default passwords.');
-      break;
+      break; // Only penalize once for common patterns
     }
   }
 
-  // 6. Repeating Character Runs (e.g., 'aaa', '1111')
+  // 6. Repeating Character Runs
   const repeatMatch = password.match(/(.)\1{2,}/g);
   if (repeatMatch) {
-    const penalty = repeatMatch.length * 10;
-    penalties += penalty;
-    details.push(`[-${penalty}] Password contains repeating character sequences (${repeatMatch.join(', ')})`);
+    // Cap penalty at -20 regardless of how many runs exist
+    const impact = -Math.min(20, repeatMatch.length * 10);
+    penalties += Math.abs(impact);
+    details.push({
+      category: 'REPETITION',
+      severity: 'MEDIUM',
+      description: `Contains repeating character sequences: ${repeatMatch.map(r => `'${r[0]}'x${r.length}`).join(', ')}`,
+      recommendation: 'Remove consecutive repeating characters',
+      scoreImpact: impact
+    });
     remediations.push('Remove consecutive repeating characters.');
   }
 
@@ -124,16 +185,23 @@ export function auditPassword(password) {
   const uniqueCount = new Set(password).size;
   const uniqueRatio = uniqueCount / len;
   if (uniqueRatio < 0.5 && len >= 8) {
-    penalties += 15;
-    details.push(`[-15] High character redundancy (${uniqueCount} unique chars out of ${len})`);
+    const impact = -15;
+    penalties += Math.abs(impact);
+    details.push({
+      category: 'REDUNDANCY',
+      severity: 'MEDIUM',
+      description: `High character redundancy — ${uniqueCount} unique chars out of ${len} total`,
+      recommendation: 'Use a wider variety of characters throughout the password',
+      scoreImpact: impact
+    });
     remediations.push('Use a wider variety of characters throughout the password.');
   }
 
-  // 8. Compute Final Score
+  // 8. Compute Final Score (deterministic: no floating-point accumulation)
   const rawScore = baseEntropyScore + bonuses - penalties;
   const finalScore = Math.max(0, Math.min(100, rawScore));
 
-  // 9. Assign Risk Tier
+  // 9. Assign Risk Tier (deterministic thresholds)
   let tier;
   if (finalScore >= 90) tier = 'EXCELLENT';
   else if (finalScore >= 80) tier = 'STRONG';
@@ -151,7 +219,7 @@ export function auditPassword(password) {
       baseEntropyScore,
       bonuses,
       penalties,
-      details
+      details // array of {category, severity, description, recommendation, scoreImpact}
     },
     remediations
   };
