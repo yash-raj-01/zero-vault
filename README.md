@@ -28,7 +28,7 @@ Then open **http://localhost:3000** in your browser.
 | **Demo TOTP Secret** | `JBSWY3DPEHPK3PXP` |
 
 > **To unlock the demo vault:**
-> 1. Open http://localhost:3000
+> 1. Open zero-vault-production.up.railway.app
 > 2. In the vault path field, enter: `my.zvault`
 > 3. Enter the master password: `ZeroVault@2025`
 > 4. Click **Unlock** — you'll see pre-loaded secrets instantly
