@@ -17,7 +17,7 @@ cd zero-vault
 npm start
 ```
 
-Then open **zero-vault-production.up.railway.app** in your browser.
+Then open **[Zero Vault – Live Deployment](https://zero-vault-production.up.railway.app)** in your browser.
 
 ### 🔑 Demo Credentials
 
