@@ -17,7 +17,7 @@ cd zero-vault
 npm start
 ```
 
-Then open **http://localhost:3000** in your browser.
+Then open **zero-vault-production.up.railway.app** in your browser.
 
 ### 🔑 Demo Credentials
 
