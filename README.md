@@ -301,7 +301,7 @@ npm run test:verbose  # Run tests with spec reporter
 
 ## 👥 Team
 
-Built for **[Hackathon Name]** — demonstrating that production-grade security tooling requires no third-party packages, only deep knowledge of cryptographic fundamentals and the Node.js standard library.
+Built for **[Zero Dependency | 72-Hour Hackathon]** — demonstrating that production-grade security tooling requires no third-party packages, only deep knowledge of cryptographic fundamentals and the Node.js standard library.
 
 ---
 
